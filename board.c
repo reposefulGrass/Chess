@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-// TODO: Change the cordinate system, its fucked up
+// TODO: Change the cordinate system, its fuck up
 
 typedef enum Player {
     GAMEMASTER, COMPUTER, HUMAN
@@ -37,12 +37,6 @@ typedef struct Piece {
 } Piece;
 
 const unsigned int BOARD_SIZE = 8;
-const Piece DEFAULT_PIECE = {
-    .owner = GAMEMASTER,
-    .type = NONE,
-    .color = NEITHER,
-    .position = (Position) {'I', 9}
-};
 
 char *piece_type_map[] = {
     "_", "P", "H", "B", "R", "Q", "K"
@@ -79,18 +73,18 @@ void
 board_initialize (Piece **board, Color human) {
     Color computer = (human == WHITE)? BLACK : WHITE;
 
-    board_at('A', 8) = piece_create(HUMAN, ROOK,   computer, (Position){'A', 8}); 
-    board_at('B', 8) = piece_create(HUMAN, KNIGHT, computer, (Position){'B', 8});
-    board_at('C', 8) = piece_create(HUMAN, BISHOP, computer, (Position){'C', 8});
-    board_at('D', 8) = piece_create(HUMAN, KING,   computer, (Position){'D', 8});
-    board_at('E', 8) = piece_create(HUMAN, QUEEN,  computer, (Position){'E', 8});
-    board_at('F', 8) = piece_create(HUMAN, BISHOP, computer, (Position){'F', 8});
-    board_at('G', 8) = piece_create(HUMAN, KNIGHT, computer, (Position){'G', 8});
-    board_at('H', 8) = piece_create(HUMAN, ROOK,   computer, (Position){'H', 8});
+    board_at('A', 8) = piece_create(COMPUTER, ROOK,   computer, (Position){'A', 8}); 
+    board_at('B', 8) = piece_create(COMPUTER, KNIGHT, computer, (Position){'B', 8});
+    board_at('C', 8) = piece_create(COMPUTER, BISHOP, computer, (Position){'C', 8});
+    board_at('D', 8) = piece_create(COMPUTER, KING,   computer, (Position){'D', 8});
+    board_at('E', 8) = piece_create(COMPUTER, QUEEN,  computer, (Position){'E', 8});
+    board_at('F', 8) = piece_create(COMPUTER, BISHOP, computer, (Position){'F', 8});
+    board_at('G', 8) = piece_create(COMPUTER, KNIGHT, computer, (Position){'G', 8});
+    board_at('H', 8) = piece_create(COMPUTER, ROOK,   computer, (Position){'H', 8});
 
     for (int i = 0; i < BOARD_SIZE; i++) {
         board_at('A' + i, 7) = piece_create(
-            HUMAN, PAWN, computer, (Position){'A' + i, 7}
+            COMPUTER, PAWN, computer, (Position){'A' + i, 7}
         );
     }
 
@@ -102,20 +96,20 @@ board_initialize (Piece **board, Color human) {
         }
     }
 
-    board_at('A', 1) = piece_create(COMPUTER, ROOK,   human, (Position){'A', 1}); 
-    board_at('B', 1) = piece_create(COMPUTER, KNIGHT, human, (Position){'B', 1});
-    board_at('C', 1) = piece_create(COMPUTER, BISHOP, human, (Position){'C', 1});
-    board_at('D', 1) = piece_create(COMPUTER, KING,   human, (Position){'D', 1});
-    board_at('E', 1) = piece_create(COMPUTER, QUEEN,  human, (Position){'E', 1});
-    board_at('F', 1) = piece_create(COMPUTER, BISHOP, human, (Position){'F', 1});
-    board_at('G', 1) = piece_create(COMPUTER, KNIGHT, human, (Position){'G', 1});
-    board_at('H', 1) = piece_create(COMPUTER, ROOK,   human, (Position){'H', 1});
-
     for (int i = 0; i < BOARD_SIZE; i++) {
         board_at('A' + i, 2) = piece_create(
-            COMPUTER, PAWN, computer, (Position){'A' + i, 2}
+            HUMAN, PAWN, computer, (Position){'A' + i, 2}
         );
     }
+
+    board_at('A', 1) = piece_create(HUMAN, ROOK,   human, (Position){'A', 1}); 
+    board_at('B', 1) = piece_create(HUMAN, KNIGHT, human, (Position){'B', 1});
+    board_at('C', 1) = piece_create(HUMAN, BISHOP, human, (Position){'C', 1});
+    board_at('D', 1) = piece_create(HUMAN, KING,   human, (Position){'D', 1});
+    board_at('E', 1) = piece_create(HUMAN, QUEEN,  human, (Position){'E', 1});
+    board_at('F', 1) = piece_create(HUMAN, BISHOP, human, (Position){'F', 1});
+    board_at('G', 1) = piece_create(HUMAN, KNIGHT, human, (Position){'G', 1});
+    board_at('H', 1) = piece_create(HUMAN, ROOK,   human, (Position){'H', 1});
 }
 
 
@@ -139,6 +133,21 @@ position_from (Position position, int x_delta, int y_delta) {
         position.alpha + x_delta,
         position.numeral + y_delta 
     };
+}
+
+
+bool
+valid_move (Piece **board, Position from, Position to) {
+    if (position_is_in_board(to)) {
+        Piece *piece_to   = board_at(to.alpha, to.numeral);
+        Piece *piece_from = board_at(from.alpha, from.numeral);
+
+        if (piece_to->owner != piece_from->owner) {
+            return true; 
+        }
+    }
+
+    return false;
 }
 
 
@@ -176,11 +185,11 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
 
 
         case ROOK: {
-            *size = 14;
+            // 14 = max rook moves
             positions = (Position *) malloc(sizeof(Position) * 14);
             MALLOC_CHECK(positions, "Position Array")
 
-            int temp = 0;
+            *size = 0;
 
             // alt is used to alternate the offset "i"
             for (int alt = -1; alt < 2; alt += 2) {
@@ -188,7 +197,7 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
                     if (position_is_in_board((Position) {alpha + (i * alt), numeral})) {
                         Piece *piece = board_at(alpha + (i * alt), numeral);
                         if (piece->type == NONE) {
-                            positions[temp++] = (Position) {alpha + (i * alt), numeral};
+                            positions[(*size)++] = (Position) {alpha + (i * alt), numeral};
 
                             Player opposite = (owner == HUMAN)? COMPUTER : HUMAN; 
                             if (piece->owner == opposite) 
@@ -206,7 +215,7 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
                     if (position_is_in_board((Position) {alpha, numeral + (i * alt)})) {
                         Piece *piece = board_at(alpha, numeral + (i * alt));
                         if (piece->type == NONE) {
-                            positions[temp++] = (Position) {alpha, numeral + (i * alt)}; 
+                            positions[(*size)++] = (Position) {alpha, numeral + (i * alt)}; 
 
                             Player opposite = (owner == HUMAN)? COMPUTER : HUMAN; 
                             if (piece->owner == opposite) 
@@ -218,12 +227,38 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
                     }
                 }
             }
+
+            positions = realloc(positions, sizeof(Position) * (*size)); 
             break;
         }
 
 
         case KNIGHT:
+            // 8 = max moves a knight can make
+            positions = (Position *) malloc(sizeof(Position) * 8);
+            MALLOC_CHECK(positions, "Position Array")
 
+            *size = 0;
+
+            Position possible_positions[8] = {
+                (Position) {alpha - 1, numeral + 2},
+                (Position) {alpha + 1, numeral + 2},
+                (Position) {alpha + 2, numeral + 1},
+                (Position) {alpha + 2, numeral - 1},
+                (Position) {alpha + 1, numeral - 2},
+                (Position) {alpha - 1, numeral - 2},
+                (Position) {alpha - 2, numeral - 1},
+                (Position) {alpha - 2, numeral + 1},
+            };
+
+            for (int i = 0; i < 8; i++) {
+                Position pos = possible_positions[i];
+                if (valid_move(board, current_pos, pos)) {
+                    positions[(*size)++] = pos;
+                }
+            }
+
+            positions = (Position *) realloc(positions, sizeof(Position) * (*size));
             break;
 
 
@@ -314,14 +349,13 @@ int
 main () {
     Piece **board = board_create();
 
-    board_at('D', 4) = piece_create(HUMAN, ROOK, WHITE, (Position) {'D', 4});
-    board_at('D', 5) = piece_create(HUMAN, PAWN, WHITE, (Position) {'D', 5});
+    board_at('D', 5) = piece_create(HUMAN, KNIGHT, WHITE, (Position) {'D', 5});
 
     board_print(board);
 
     int num_spots = 0;
     Position *spots = piece_spots_available(
-        board, board_at('D', 4), &num_spots
+        board, board_at('D', 5), &num_spots
     );
 
     for (int i = 0; i < num_spots; i++) {
