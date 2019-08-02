@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-// TODO: Change the cordinate system, its fuck up
+// TODO: Change (Position) { a, i } TO position_create(a, i)
 
 typedef enum Player {
     GAMEMASTER, COMPUTER, HUMAN
@@ -135,14 +135,20 @@ position_from (Position position, int x_delta, int y_delta) {
     };
 }
 
+Position
+position_create (char alpha, int numeral) {
+    return (Position) { alpha, numeral };
+}
+
 
 bool
 valid_move (Piece **board, Position from, Position to) {
     if (position_is_in_board(to)) {
-        Piece *piece_to   = board_at(to.alpha, to.numeral);
         Piece *piece_from = board_at(from.alpha, from.numeral);
+        Piece *piece_to   = board_at(to.alpha, to.numeral);
 
-        if (piece_to->owner != piece_from->owner) {
+        // includes any spot that isn't occupied by a (piece_from->owner)'s piece.
+        if (piece_from->owner != piece_to->owner) {
             return true; 
         }
     }
@@ -161,49 +167,67 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
     Player owner = piece->owner;
 
     switch (piece->type) {
+        // A Pawn has 2 possible moves (forward +2) if he has yet to move,
+        // and 1 possible move (forward +1) if he has.
         case PAWN: {
-            int y_delta = (owner == COMPUTER)? 1 : -1;
+            *size = 0;
+            int y_delta = (owner == HUMAN)? 1 : -1;
 
             // the pawn's first move
-            if ((numeral == 2 && owner == COMPUTER) || (numeral == 7 && HUMAN)) {
-                *size = 2;
+            if ((numeral == 2 && owner == HUMAN) || (numeral == 7 && COMPUTER)) {
                 positions = (Position *) malloc(sizeof(Position) * 2);
                 MALLOC_CHECK(positions, "Position Array")
 
-                positions[0] = position_from(current_pos, 0, y_delta);
-                positions[1] = position_from(current_pos, 0, 2 * y_delta);
+                if (valid_move(board, current_pos, position_create(alpha, numeral + y_delta))) {
+                    positions[0] = (Position) {alpha, numeral + y_delta};
+                    if (valid_move(board, current_pos, position_create(alpha, numeral + 2 * y_delta))) {
+                        *size = 2;
+                        positions[1] = position_create(alpha, numeral + 2 * y_delta);
+                    }
+                    else {
+                        *size = 1;
+                    }
+                }
             } 
             else {
-                *size = 1;
                 positions = (Position *) malloc(sizeof(Position) * 1);
                 MALLOC_CHECK(positions, "Position Array")
 
-                positions[0] = position_from(current_pos, 0, y_delta);
+                if (valid_move(board, current_pos, position_create(alpha, numeral + y_delta))) {
+                    *size = 1;
+                    positions[0] = position_from(current_pos, 0, y_delta);
+                }
             }
             break;
         } 
 
 
+        // A Rook has 14 possible moves, 7 in each direction, regardless of 
+        // his position on the board. However, a rook cannot pass through other
+        // pieces, so it's path must be stopped once encountered.
         case ROOK: {
-            // 14 = max rook moves
-            positions = (Position *) malloc(sizeof(Position) * 14);
+            positions = (Position *) malloc(sizeof(Position) * (7 * 2));
             MALLOC_CHECK(positions, "Position Array")
 
             *size = 0;
 
             // alt is used to alternate the offset "i"
-            for (int alt = -1; alt < 2; alt += 2) {
+            for (int alt = -1; alt <= 1; alt += 2) {
                 for (int i = 1; i < 8; i++) {
-                    if (position_is_in_board((Position) {alpha + (i * alt), numeral})) {
+                    Position cursor = (Position) {alpha + (i * alt), numeral};
+                    if (position_is_in_board(cursor)) {
                         Piece *piece = board_at(alpha + (i * alt), numeral);
+                        // no piece
                         if (piece->type == NONE) {
-                            positions[(*size)++] = (Position) {alpha + (i * alt), numeral};
-
-                            Player opposite = (owner == HUMAN)? COMPUTER : HUMAN; 
-                            if (piece->owner == opposite) 
-                                break;
+                            positions[(*size)++] = cursor;
                         }
+                        // allied piece
                         else if (piece->owner == owner) {
+                            break;
+                        }
+                        // enemy piece
+                        else {
+                            positions[(*size)++] = cursor;    
                             break;
                         }
                     }
@@ -212,16 +236,20 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
            
             for (int alt = -1; alt < 2; alt += 2) {
                 for (int i = 1; i < 8; i++) {
-                    if (position_is_in_board((Position) {alpha, numeral + (i * alt)})) {
+                    Position cursor = (Position) {alpha, numeral + (i * alt)};
+                    if (position_is_in_board(cursor)) {
                         Piece *piece = board_at(alpha, numeral + (i * alt));
+                        // no piece
                         if (piece->type == NONE) {
-                            positions[(*size)++] = (Position) {alpha, numeral + (i * alt)}; 
-
-                            Player opposite = (owner == HUMAN)? COMPUTER : HUMAN; 
-                            if (piece->owner == opposite) 
-                                break;
+                            positions[(*size)++] = cursor;
                         }
+                        // allied piece
                         else if (piece->owner == owner) {
+                            break;
+                        }
+                        // enemy piece
+                        else {
+                            positions[(*size)++] = cursor;
                             break;
                         }
                     }
@@ -233,14 +261,15 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
         }
 
 
+        // A knight has 8 different spots he can move onto.
+        // It can also jump over any other piece onto that spot.
         case KNIGHT:
-            // 8 = max moves a knight can make
-            positions = (Position *) malloc(sizeof(Position) * 8);
+            positions = (Position *) malloc(sizeof(Position) * (4 * 2));
             MALLOC_CHECK(positions, "Position Array")
 
             *size = 0;
 
-            Position possible_positions[8] = {
+            Position knight_possible_positions[8] = {
                 (Position) {alpha - 1, numeral + 2},
                 (Position) {alpha + 1, numeral + 2},
                 (Position) {alpha + 2, numeral + 1},
@@ -252,7 +281,7 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
             };
 
             for (int i = 0; i < 8; i++) {
-                Position pos = possible_positions[i];
+                Position pos = knight_possible_positions[i];
                 if (valid_move(board, current_pos, pos)) {
                     positions[(*size)++] = pos;
                 }
@@ -267,8 +296,32 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
             break;
 
 
+        // A King can move once in every direction, totaling 8 possible moves.
         case KING:
+            positions = (Position *) malloc(sizeof(Position) * 8);
+            MALLOC_CHECK(positions, "Position Array")
 
+            *size = 0;
+
+            Position king_possible_positions[8] = {
+                (Position) {alpha - 1, numeral + 1},
+                (Position) {alpha    , numeral + 1},
+                (Position) {alpha + 1, numeral + 1},
+                (Position) {alpha + 1, numeral - 1},
+                (Position) {alpha + 1, numeral    },
+                (Position) {alpha - 1, numeral + 1},
+                (Position) {alpha    , numeral - 1},
+                (Position) {alpha - 1, numeral - 1},
+            };
+
+            for (int i = 0; i < 8; i++) {
+                Position pos = king_possible_positions[i];
+                if (valid_move(board, current_pos, pos)) {
+                    positions[(*size)++] = pos;
+                }
+            }
+
+            positions = (Position *) realloc(positions, sizeof(Position) * (*size));
             break;
 
 
@@ -281,6 +334,7 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
 }
 
 
+// TODO: Is this function needed?
 Position *
 piece_spots_available (Piece **board, Piece *piece, int *num_pos) {
     int num_deltas = 0;
@@ -289,9 +343,10 @@ piece_spots_available (Piece **board, Piece *piece, int *num_pos) {
     Player current_player = piece->owner;
 
     *num_pos = 0;
-    Position positions[16] = {0, 0}; // max number of spots available to a piece
+    Position positions[64] = {0, 0}; // max number of spots available to a piece
 
     for (Position *cursor = deltas; num_deltas > 0; cursor++, num_deltas--) {
+        // TODO: is position_is_in_board() needed? doesn't piece_deltas() already check this?
         if (position_is_in_board(*cursor)) {
             if (board_at(cursor->alpha, cursor->numeral)->owner != current_player) {
                 positions[*num_pos] = *cursor; 
@@ -349,20 +404,17 @@ int
 main () {
     Piece **board = board_create();
 
-    board_at('D', 5) = piece_create(HUMAN, KNIGHT, WHITE, (Position) {'D', 5});
+    board_at('D', 4) = piece_create(HUMAN, ROOK, WHITE, (Position) {'D', 4});
+    board_at('F', 4) = piece_create(COMPUTER, PAWN, BLACK, (Position) {'F', 4});
 
     board_print(board);
 
     int num_spots = 0;
-    Position *spots = piece_spots_available(
-        board, board_at('D', 5), &num_spots
-    );
-
+    Position *spots = piece_deltas(board, board_at('D', 4), &num_spots);
     for (int i = 0; i < num_spots; i++) {
         printf("%c%d ", spots[i].alpha, spots[i].numeral);
     }    
     printf("\n");
-
     free(spots);
 
     board_destroy(board);
