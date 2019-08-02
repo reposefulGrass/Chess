@@ -33,7 +33,7 @@ typedef struct Piece {
     Player owner;
     PieceType type;   
     Color color;
-    Position positionition;
+    Position position; // TODO: Remove this? Is it significant?
 } Piece;
 
 const unsigned int BOARD_SIZE = 8;
@@ -80,7 +80,7 @@ piece_create (Player owner, PieceType type, Color color, Position position) {
         .owner = owner,
         .type = type,
         .color = color,
-        .positionition = position
+        .position = position
     };
 
     return piece;
@@ -93,7 +93,11 @@ void
 board_initialize (Piece **board, Color human) {
     Color computer = (human == WHITE)? BLACK : WHITE;
 
-    board_at('A', 8) = piece_create(COMPUTER, ROOK,   computer, position('A', 8)); 
+    //TODO: Replace board_at() with board_place()?
+    board_place(
+        &board, position('A', 8),
+        piece_create(COMPUTER, ROOK,   computer, position('A', 8))
+    ); 
     board_at('B', 8) = piece_create(COMPUTER, KNIGHT, computer, position('B', 8));
     board_at('C', 8) = piece_create(COMPUTER, BISHOP, computer, position('C', 8));
     board_at('D', 8) = piece_create(COMPUTER, KING,   computer, position('D', 8));
@@ -176,7 +180,7 @@ Position *
 piece_deltas (Piece **board, Piece *piece, int *size) {
     Position *positionitions;
             
-    Position current_position = piece->positionition;
+    Position current_position = piece->position;
     char alpha = current_position.alpha;
     int numeral = current_position.numeral;
     Player owner = piece->owner;
