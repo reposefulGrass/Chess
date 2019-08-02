@@ -334,39 +334,6 @@ piece_deltas (Piece **board, Piece *piece, int *size) {
 }
 
 
-// TODO: Is this function needed?
-Position *
-piece_spots_available (Piece **board, Piece *piece, int *num_pos) {
-    int num_deltas = 0;
-    Position *deltas = piece_deltas(board, piece, &num_deltas); 
-
-    Player current_player = piece->owner;
-
-    *num_pos = 0;
-    Position positions[64] = {0, 0}; // max number of spots available to a piece
-
-    for (Position *cursor = deltas; num_deltas > 0; cursor++, num_deltas--) {
-        // TODO: is position_is_in_board() needed? doesn't piece_deltas() already check this?
-        if (position_is_in_board(*cursor)) {
-            if (board_at(cursor->alpha, cursor->numeral)->owner != current_player) {
-                positions[*num_pos] = *cursor; 
-                *num_pos = *num_pos + 1;
-            }
-        }
-    }
-
-    Position *filtered_positions = (Position *) malloc(sizeof(Position) * *num_pos);
-    MALLOC_CHECK(filtered_positions, "filtered_positions")
-
-    for (int i = 0; i < *num_pos; i++) {
-        filtered_positions[i] = positions[i];
-    }
-
-    free(deltas);
-    return filtered_positions;
-}
-
-
 Piece **
 board_create () {
     Piece **board = (Piece **) malloc(sizeof(Piece *) * BOARD_SIZE * BOARD_SIZE);
